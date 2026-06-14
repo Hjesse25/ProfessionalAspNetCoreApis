@@ -1,0 +1,27 @@
+GET http://localhost:5000/api/tasks
+
+###
+GET http://localhost:5000/api/tasks/1
+
+###
+GET http://localhost:5000/api/tasks/67
+
+### 
+POST http://localhost:5000/api/tasks
+Content-Type: application/json
+
+{
+    "title": "Wash clothes",
+    "description": "",
+    "status": "InProgress"
+}
+
+###
+PUT http://localhost:5000/api/tasks/2
+Content-Type: application/json
+
+{
+    "title": "Wash clothes",
+    "description": "",
+    "status": "Complete"
+}
