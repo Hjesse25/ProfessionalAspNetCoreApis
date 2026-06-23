@@ -17,14 +17,16 @@ builder.Services.AddDbContext<TaskManagementDbContext>(options =>
 
 var app = builder.Build();
 
-// temporary storage of tasks
-var tasks = new List<TaskItem>();
-
 // Add middleware and map endpoints here
 app.UseHttpsRedirection();
 
-app.MapGet("/api/tasks", () =>
+// GET all tasks
+app.MapGet("/api/tasks", async (TaskManagementDbContext db) =>
 {
+    var tasks = await db.Tasks
+        .OrderByDescending(task => task.CreatedAtUtc)
+        .ToListAsync();
+
     var response = tasks
         .Select(task => task.ToReponse())
         .ToList();
@@ -32,9 +34,12 @@ app.MapGet("/api/tasks", () =>
     return Results.Ok(response);
 });
 
-app.MapGet("/api/tasks/{id:int}", (int id) =>
+// Get task by id
+app.MapGet("/api/tasks/{id:int}", async (
+    int id,
+    TaskManagementDbContext db) =>
 {
-    var task = tasks.FirstOrDefault(task => task.Id == id);
+    var task = await db.Tasks.FindAsync(id);
 
     if (task is null)
     {
@@ -47,7 +52,10 @@ app.MapGet("/api/tasks/{id:int}", (int id) =>
     return Results.Ok(task.ToReponse());
 });
 
-app.MapPost("/api/tasks", (CreateTaskRequest request) =>
+// create new task
+app.MapPost("/api/tasks", async (
+    CreateTaskRequest request,
+    TaskManagementDbContext db) =>
 {
     if (string.IsNullOrWhiteSpace(request.Title))
     {
@@ -57,13 +65,8 @@ app.MapPost("/api/tasks", (CreateTaskRequest request) =>
         });
     }
 
-    var nextId = tasks.Count == 0
-        ? 1
-        : tasks.Max(t => t.Id) + 1;
-
     var task = new TaskItem
     {
-        Id = nextId,
         Title = request.Title.Trim(),
         Description = request.Description,
         Status = string.IsNullOrWhiteSpace(request.Status)
@@ -72,14 +75,19 @@ app.MapPost("/api/tasks", (CreateTaskRequest request) =>
         CreatedAtUtc = DateTime.UtcNow
     };
 
-    tasks.Add(task);
+    db.Tasks.Add(task);
+    await db.SaveChangesAsync();
 
     return Results.Created($"/api/tasks/{task.Id}", task.ToReponse());
 });
 
-app.MapPut("/api/tasks/{id:int}", (int id, UpdateTaskRequest request) =>
+// update task by id
+app.MapPut("/api/tasks/{id:int}", async (
+    int id, 
+    UpdateTaskRequest request,
+    TaskManagementDbContext db) =>
 {
-    var task = tasks.FirstOrDefault(task => task.Id == id);
+    var task = await db.Tasks.FindAsync(id);
 
     if (task is null)
     {
@@ -93,6 +101,8 @@ app.MapPut("/api/tasks/{id:int}", (int id, UpdateTaskRequest request) =>
     task.Description = request.Description;
     task.Status = request.Status.Trim();
 
+    await db.SaveChangesAsync();
+
     var response = new TaskResponse(
         task.Id,
         task.Title,
@@ -102,6 +112,26 @@ app.MapPut("/api/tasks/{id:int}", (int id, UpdateTaskRequest request) =>
     );
 
     return Results.Ok(response);
+});
+
+app.MapDelete("/api/tasks/{id:int}", async (
+    int id,
+    TaskManagementDbContext db) =>
+{
+    var task = await db.Tasks.FindAsync(id);
+
+    if (task is null)
+    {
+        return Results.NotFound(new
+        {
+            error = $"Task with ID {id} was not found."
+        });
+    }
+
+    db.Tasks.Remove(task);
+    await db.SaveChangesAsync();
+
+    return Results.NoContent();
 });
 
 app.Run();

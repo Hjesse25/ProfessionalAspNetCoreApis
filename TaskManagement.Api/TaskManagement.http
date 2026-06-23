@@ -11,17 +11,17 @@ POST http://localhost:5000/api/tasks
 Content-Type: application/json
 
 {
-    "title": "Wash clothes",
-    "description": "",
-    "status": "InProgress"
+    "title": "Store tasks with EF Core",
+    "description": "Replace in-memory storage with SQLite",
+    "status": "Pending"
 }
 
 ###
-PUT http://localhost:5000/api/tasks/2
+PUT http://localhost:5000/api/tasks/1
 Content-Type: application/json
 
 {
-    "title": "Wash clothes",
-    "description": "",
-    "status": "Complete"
+    "title": "Store tasks with EF Core",
+    "description": "Confirm database-backed updates work",
+    "status": "InProgress"
 }
