@@ -2,10 +2,18 @@ using TaskManagement.Api.Models;
 using TaskManagement.Api.Contracts.Requests;
 using TaskManagement.Api.Contracts.Responses;
 using TaskManagement.Api.Mapping;
+using TaskManagement.Api.Data;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Register services here
+builder.Services.AddDbContext<TaskManagementDbContext>(options =>
+{
+    options.UseSqlite(
+        builder.Configuration.GetConnectionString("DefaultConnection")   
+    );
+});
 
 var app = builder.Build();
 
