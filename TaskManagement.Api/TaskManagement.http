@@ -11,9 +11,9 @@ POST http://localhost:5000/api/tasks
 Content-Type: application/json
 
 {
-    "title": "Store tasks with EF Core",
-    "description": "Replace in-memory storage with SQLite",
-    "status": "Pending"
+    "title": "Add validation",
+    "description": "Reject invalid task input",
+    "status": "InProgress"
 }
 
 ###

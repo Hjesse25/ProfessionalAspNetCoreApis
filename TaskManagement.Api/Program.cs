@@ -4,20 +4,29 @@ using TaskManagement.Api.Contracts.Responses;
 using TaskManagement.Api.Mapping;
 using TaskManagement.Api.Data;
 using Microsoft.EntityFrameworkCore;
+using TaskManagement.Api.Validation;
+using TaskManagement.Api.Constants;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Register services here
+builder.Services.AddProblemDetails();
+
 builder.Services.AddDbContext<TaskManagementDbContext>(options =>
 {
     options.UseSqlite(
-        builder.Configuration.GetConnectionString("DefaultConnection")   
+        builder.Configuration.GetConnectionString("DefaultConnection")
     );
 });
 
 var app = builder.Build();
 
 // Add middleware and map endpoints here
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler();
+}
+
 app.UseHttpsRedirection();
 
 // GET all tasks
@@ -43,10 +52,11 @@ app.MapGet("/api/tasks/{id:int}", async (
 
     if (task is null)
     {
-        return Results.NotFound(new
-        {
-            error = $"Task with ID {id} was not found."
-        });
+        return Results.Problem(
+            title: "Task not found",
+            detail: $"Task with ID {id} was not found.",
+            statusCode: StatusCodes.Status400BadRequest
+        );
     }
 
     return Results.Ok(task.ToReponse());
@@ -57,12 +67,15 @@ app.MapPost("/api/tasks", async (
     CreateTaskRequest request,
     TaskManagementDbContext db) =>
 {
-    if (string.IsNullOrWhiteSpace(request.Title))
+    var validationError = TaskValidation.ValidateCreate(request);
+
+    if (validationError is not null)
     {
-        return Results.BadRequest(new
-        {
-            error = "The task title is required."
-        });
+        return Results.Problem(
+            title: "Invalid task request",
+            detail: validationError,
+            statusCode: StatusCodes.Status400BadRequest
+        );
     }
 
     var task = new TaskItem
@@ -83,7 +96,7 @@ app.MapPost("/api/tasks", async (
 
 // update task by id
 app.MapPut("/api/tasks/{id:int}", async (
-    int id, 
+    int id,
     UpdateTaskRequest request,
     TaskManagementDbContext db) =>
 {
@@ -91,10 +104,22 @@ app.MapPut("/api/tasks/{id:int}", async (
 
     if (task is null)
     {
-        return Results.NotFound(new
-        {
-            error = $"Task with ID {id} was not found."
-        });
+        return Results.Problem(
+            title: "Task not found",
+            detail: $"Task with ID {id} was not found.",
+            statusCode: StatusCodes.Status400BadRequest
+        );
+    }
+
+    var validationError = TaskValidation.ValidateUpdate(request);
+
+    if (validationError is not null)
+    {
+        return Results.Problem(
+            title: "Invalid task request",
+            detail: validationError,
+            statusCode: StatusCodes.Status400BadRequest
+        );
     }
 
     task.Title = request.Title.Trim();
@@ -103,15 +128,7 @@ app.MapPut("/api/tasks/{id:int}", async (
 
     await db.SaveChangesAsync();
 
-    var response = new TaskResponse(
-        task.Id,
-        task.Title,
-        task.Description,
-        task.Status,
-        task.CreatedAtUtc
-    );
-
-    return Results.Ok(response);
+    return Results.Ok(task.ToReponse());
 });
 
 app.MapDelete("/api/tasks/{id:int}", async (
@@ -122,10 +139,11 @@ app.MapDelete("/api/tasks/{id:int}", async (
 
     if (task is null)
     {
-        return Results.NotFound(new
-        {
-            error = $"Task with ID {id} was not found."
-        });
+        return Results.Problem(
+            title: "Task not found.",
+            detail: $"Task with ID {id} was not found.",
+            statusCode: StatusCodes.Status400BadRequest
+        );
     }
 
     db.Tasks.Remove(task);
